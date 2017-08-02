@@ -14,6 +14,7 @@ const PeerInfo = require('peer-info')
 const PeerBook = require('peer-book')
 const mafmt = require('mafmt')
 const multiaddr = require('multiaddr')
+const Circuit = require('libp2p-circuit')
 
 exports = module.exports
 
@@ -43,9 +44,6 @@ class Node extends EventEmitter {
       // If muxer exists, we can use Identify
       this.swarm.connection.reuse()
 
-      // If muxer exists, we can use Relay for listening/dialing
-      this.swarm.connection.enableRelayDialing(_options.relay)
-
       // Received incommind dial and muxer upgrade happened,
       // reuse this muxed connection
       this.swarm.on('peer-mux-established', (peerInfo) => {
@@ -56,6 +54,8 @@ class Node extends EventEmitter {
       this.swarm.on('peer-mux-closed', (peerInfo) => {
         this.emit('peer:disconnect', peerInfo)
       })
+
+      this.modules.transport.push(new Circuit(this.swarm, _options.relay))
     }
 
     // Attach crypto channels
@@ -171,7 +171,7 @@ class Node extends EventEmitter {
         this.swarm.transport.add(
           transport.tag || transport.constructor.name, transport)
       } else if (transport.constructor &&
-                 transport.constructor.name === 'WebSockets') {
+        transport.constructor.name === 'WebSockets') {
         // TODO find a cleaner way to signal that a transport is always
         // used for dialing, even if no listener
         ws = transport
